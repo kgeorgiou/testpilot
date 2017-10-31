@@ -16,23 +16,35 @@ if (typeof navigator !== 'undefined') {
 }
 
 function mozAddonManagerInstall(url, sendToGA) {
-  const start = url.indexOf('files/') + 6;
+  const start = url.indexOf('files/');
   const end = url.indexOf('@');
-  const experimentTitle = url.substring(start, end);
-  return mam.createInstall({ url }).then(install => {
-    return install.install().then(() => {
-      sendToGA('event', {
-        eventCategory: 'ExperimentDetailsPage Interactions',
-        eventAction: 'Accept From Permission',
-        eventLabel: experimentTitle
+  // Check if it's an experiment addon or the TestPilot addon
+  const addOnTitle = start === -1 ? TESTPILOT_ADDON_ID : url.substring(start + 6, end);
+  const sendToGAWrapper = (eventAction) => sendToGA('event', {
+    eventCategory: 'ExperimentDetailsPage Interactions',
+    eventAction: eventAction,
+    eventLabel: addOnTitle
+  });
+  return mam.createInstall({ url }).then((install) => {
+    return new Promise((resolve, reject) => {
+      install.addEventListener('onInstallEnded', () => {
+        sendToGAWrapper('AddOn Installed');
+        resolve();
       });
-    }).catch((err) => {
-      sendToGA('event', {
-        eventCategory: 'ExperimentDetailsPage Interactions',
-        eventAction: 'Cancel From Permission',
-        eventLabel: experimentTitle
+      install.addEventListener('onDownloadFailed', () => {
+        sendToGAWrapper('AddOn Download Failed');
+        reject();
       });
-      throw err;
+      install.addEventListener('onInstallFailed', () => {
+        sendToGAWrapper('AddOn Installation Failed');
+        reject();
+      });
+      const promise = install.install();
+      promise.catch(() => {
+        // Catching here resets the experiment's 'Enable' button to its initial state
+        sendToGAWrapper('Cancel From Permission');
+        reject();
+      });
     });
   });
 }

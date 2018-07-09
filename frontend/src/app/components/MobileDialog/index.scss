@@ -7,8 +7,16 @@
     max-width: 100%;
   }
 
-  .mobile-header-img {
-    width: 150px;
+  .mobile-header-img-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 320px;
+    margin: 0 auto;
+
+    .mobile-header-img {
+      width: 150px;
+    }
   }
 
   .loading {

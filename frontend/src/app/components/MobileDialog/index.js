@@ -76,25 +76,59 @@ export default class MobileDialog extends React.Component {
       }).catch((e) => this.setState({ loading: false }));
   }
 
-  render() {
+  handleAppLinkClick = (platform) => {
     const { experiment, sendToGA, fromFeatured } = this.props;
-    const { title, android_url, ios_url } = experiment;
+
+    sendToGA("event", {
+      eventCategory: "SMS Modal Interactions",
+      eventAction: "mobile store click",
+      eventLabel: `${experiment.title} ${platform} `,
+      dimension11: experiment.slug,
+      dimension13: fromFeatured ? "Featured Experiment" : "Experiment Detail"
+    });
+  };
+
+  renderPlatformStoreDetails = (platforms) => {
+    const { experiment } = this.props;
+    const { title } = experiment;
+
+    const platformText = (
+      // TODO: figure out how to re-use current localized html IDs: mobileDialogMessageIOS and mobileDialogMessageAndroid
+      <LocalizedHtml $title={title}>
+        <p>Download <b>{title}</b> from the {platforms.map(p => p.storeName).join(" or the ")}.</p>
+      </LocalizedHtml>
+    );
+
+    const platformImgs = (
+      <div className="mobile-header-img-container centered">
+        {
+          platforms.map(
+            (p, i) =>
+              <a key={i} href={p.url} onClick={() => this.handleAppLinkClick(p.platform)} target="_blank" rel="noopener noreferrer">
+                <img className="mobile-header-img" src={p.img} />
+              </a>
+          )
+        }
+      </div>
+    );
+
+    return (
+      <div>
+        {platformText}
+        {platformImgs}
+      </div>
+    );
+  }
+
+  render() {
+    const { experiment } = this.props;
+    const { android_url, ios_url } = experiment;
     const { isSuccess, allowSMS, loading } = this.state;
 
-    const handleAppLinkClick = () => {
-      const platform = ios_url ? "ios" : "android";
-      sendToGA("event", {
-        eventCategory: "SMS Modal Interactions",
-        eventAction: "mobile store click",
-        eventLabel: `${experiment.title} ${platform} `,
-        dimension11: experiment.slug,
-        dimension13: fromFeatured ? "Featured Experiment" : "Experiment Detail"
-      });
-    };
-
-    const headerMessage = ios_url ? (<LocalizedHtml id="mobileDialogMessageIOS" $title={title}>
-      <p>Download <b>{title}</b> from the iOS App Store.</p></LocalizedHtml>) : (<LocalizedHtml id="mobileDialogMessageAndroid" $title={title}><p>Download <b>{title}</b> from the Google Play Store.</p></LocalizedHtml>);
-    const headerImg = ios_url ? (<a href={ios_url} onClick={handleAppLinkClick} target="_blank" rel="noopener noreferrer"><img className="mobile-header-img" src={iconIos}/></a>) : (<a href={android_url} onClick={handleAppLinkClick} target="_blank" rel="noopener noreferrer"><img className="mobile-header-img" src={iconGoogle}/></a>);
+    const availablePlatforms = [
+      { platform: "android", url: android_url, img: iconGoogle, storeName: "Google Play Store" },
+      { platform: "ios", url: ios_url, img: iconIos, storeName: "iOS App Store" }
+    ].filter(p => typeof (p.url) !== "undefined");
 
     const learnMoreLink = "https://www.mozilla.org/privacy/websites/#campaigns";
 
@@ -109,7 +143,7 @@ export default class MobileDialog extends React.Component {
     const notice = allowSMS ? (<Localized id="mobileDialogNoticeSMS" $learnMore={learnMore}><p className="notice">SMS service available in select countries only. SMS & data rates may apply. The intended recipient of the email or SMS must have consented. {learnMore}</p></Localized>)
       : (<LocalizedHtml id="newsletterFormPrivacyNotice" $privacy={privacy}>
         <p className="notice">
-        I&apos;m okay with Mozilla handling my info as explained in {privacy}.
+          I&apos;m okay with Mozilla handling my info as explained in {privacy}.
         </p>
       </LocalizedHtml>
       );
@@ -123,14 +157,13 @@ export default class MobileDialog extends React.Component {
             <Localized id="mobileDialogTitle">
               <h3 className="modal-header">Get the App</h3>
             </Localized>
-            <div className="modal-cancel" onClick={this.close}/>
+            <div className="modal-cancel" onClick={this.close} />
           </header>
           <div className="modal-content centered default-background">
             <div className="header-wrapped">
-              {headerMessage}
-              {headerImg}
+              {this.renderPlatformStoreDetails(availablePlatforms)}
             </div>
-            {loading && <Loading/>}
+            {loading && <Loading />}
             {!loading && !isSuccess && this.renderForm()}
             {!loading && !isSuccess && notice}
             {isSuccess && this.renderSuccess()}
@@ -204,22 +237,22 @@ export default class MobileDialog extends React.Component {
 
         {allowSMS && // <Localized id="mobileDialogPlaceholderSMS" attrs={{placeholder: true}}>
           <input
-            className={classnames({"input-error": isError && submitAttempted})}
+            className={classnames({ "input-error": isError && submitAttempted })}
             type="text"
             placeholder="Enter your Phone/Email"
             value={this.state.recipient}
             onChange={this.handleRecipientChange} />
-        // </Localized>
+          // </Localized>
         }
 
         {!allowSMS && // <Localized id="mobileDialogPlaceholder" attrs={{placeholder: true}}>
           <input
-            className={classnames({"input-error": isError && submitAttempted})}
+            className={classnames({ "input-error": isError && submitAttempted })}
             type="text"
             placeholder="Enter your Email"
             value={this.state.recipient}
             onChange={this.handleRecipientChange} />
-        // </Localized>
+          // </Localized>
         }
 
         <Localized id="mobileDialogButton">
@@ -245,7 +278,7 @@ export default class MobileDialog extends React.Component {
     const source = "" + getWindowLocation();
 
     // return early and show errors if submit attempt fails
-    if (!this.validateRecipient(recipient)) return this.setState({submitAttempted: true, isError: true});
+    if (!this.validateRecipient(recipient)) return this.setState({ submitAttempted: true, isError: true });
 
     if (allowSMS && isValidNumber(recipient, country)) {
       sendToGA("event", {
